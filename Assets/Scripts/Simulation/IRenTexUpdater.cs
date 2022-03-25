@@ -4,6 +4,6 @@ namespace Simulation
 {
     interface IRenTexUpdater
     {
-        public void Update(RenderTexture target);
+        public void RenTextUpdate(RenderTexture target);
     }
 }

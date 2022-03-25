@@ -15,7 +15,6 @@ namespace Simulation
         private RenderTexture _targetTexture;
         // all class that want to change target texture
         private IRenTexUpdater[] _targetTexUpdaters;
-        // all class that do logic before change target texture
 
         private void Awake()
         {
@@ -30,7 +29,7 @@ namespace Simulation
             // Update TargetTexture
             foreach (var texUpdater in _targetTexUpdaters)
             {
-                texUpdater.Update(_targetTexture);
+                texUpdater.RenTextUpdate(_targetTexture);
             }
             
             // Display targetTexture

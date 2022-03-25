@@ -134,6 +134,9 @@ GameObject:
   - component: {fileID: 1985681204}
   - component: {fileID: 1985681203}
   - component: {fileID: 1985681202}
+  - component: {fileID: 1985681206}
+  - component: {fileID: 1985681205}
+  - component: {fileID: 1985681207}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -206,3 +209,43 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1985681205
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985681201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eed1ac384a5e4576b7621769b46904f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _agentMoveSpeed: 100
+  _agentCnt: 20
+  _mainShader: {fileID: 7200000, guid: a0b9c2293d69c431a9eff47bb010d696, type: 3}
+--- !u!114 &1985681206
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985681201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bf2d4f6cb3f642d98b07fdfc9cfb7ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &1985681207
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985681201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b6da4392df44854abfa6370fbbdcb69, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _mainShader: {fileID: 7200000, guid: a0b9c2293d69c431a9eff47bb010d696, type: 3}
