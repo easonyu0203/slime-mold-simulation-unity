@@ -1,8 +1,14 @@
 #pragma kernel AgentUpdate
 #pragma kernel SimRender
 
+/**
+ * \brief 
+ * \param uv 
+ * \return random 0~1
+ */
 float random (float2 uv)
 {
+    uv /= 1000;
     return frac(sin(dot(uv,float2(12.9898,78.233)))*43758.5453123);
 }
 
@@ -17,17 +23,45 @@ struct Agent
 RWStructuredBuffer<Agent> agents;
 RWTexture2D<float> trailMap;
 int agentCnt;
-float moveSpeed;
 // deltaTime
 float deltaTime;
 // boundary
 int width;
 int height;
+// setting
+float moveSpeed;
+float trailDecaySpeed;
+float diffusedSpeed;
+float agentTurnSpeed;
+float sensorOffsetDst;
+float sensorAngleOffset;
+int sensorSize;
+
+float sense(int x, float sensorAngleOffset)
+{
+    float senseAngle = agents[x].angle + sensorAngleOffset;
+    float2 senseDir = float2(cos(senseAngle), sin(senseAngle));
+    int2 senseCenter = agents[x].position + (senseDir * sensorOffsetDst);
+
+    float sum = 0;
+    for(int i = -sensorSize; i < sensorSize; i++)
+    {
+        for(int j = -sensorSize; j < sensorSize; j++)
+        {
+            int2 pos = senseCenter + int2(i,j);
+            if(pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height)
+            {
+                sum += trailMap[pos];
+            }
+        }
+    }
+    return sum;
+}
 
 [numthreads(64,1,1)]
 void AgentUpdate (uint3 id : SV_DispatchThreadID)
 {
-    // if (id.x >= (uint)agentCnt) return;
+    float randomVal = random(agents[id.x].position + agents[id.x].angle);
 
     // get new position
     Agent agent = agents[id.x];
@@ -39,7 +73,30 @@ void AgentUpdate (uint3 id : SV_DispatchThreadID)
     {
         newPos.x = min(width - 1, max(0, newPos.x));
         newPos.y = min(height - 1, max(0, newPos.y));
-        agents[id.x].angle = random(agents[id.x].position + agents[id.x].angle) * 2 * 3.141592;
+        agents[id.x].angle = randomVal * 2 * 3.141592;
+    }
+
+    // Turn by trail
+    float forwardW = sense(id.x, 0);
+    float leftW = sense(id.x, sensorAngleOffset);
+    float rightW = sense(id.x, -sensorAngleOffset);
+    float steerStrength = randomVal;
+    
+    if(forwardW > leftW && forwardW > rightW)
+    {
+        agents[id.x].angle += 0;
+    }
+    else if(forwardW < leftW && forwardW < rightW)
+    {
+        agents[id.x].angle += (steerStrength - 0.5) * 2 * agentTurnSpeed * deltaTime;
+    }
+    else if(rightW > leftW)
+    {
+        agents[id.x].angle -= steerStrength * agentTurnSpeed * deltaTime;
+    }
+    else if(leftW > rightW)
+    {
+        agents[id.x].angle += steerStrength * agentTurnSpeed * deltaTime;
     }
 
     // update position and leave trail
@@ -47,12 +104,35 @@ void AgentUpdate (uint3 id : SV_DispatchThreadID)
     agents[id.x].position = newPos;
 }
 
+
+
 // Display Stuff
 RWTexture2D<float4> Result;
 
 [numthreads(8,8,1)]
 void SimRender (uint3 id : SV_DispatchThreadID)
 {
+    // Diffusion
+    // use blur and 
+    float sum = 0;
+    for (int i = -1; i < 2; ++i)
+    {
+        for (int j = -1; j < 2; ++j)
+        {
+            int x = id.x + i;
+            int y = id.y + j;
+            if(x >= 0 && x < width && y >=0 && y < height)
+            {
+                sum += trailMap[int2(x,  y)];
+            }
+        }
+    }
+    float blurVal = sum / 9;
+    float diffusedVal = lerp(trailMap[id.xy], blurVal, diffusedSpeed * deltaTime);
+    
+    // Decay Trail Map
+    trailMap[id.xy] = max(0, diffusedVal - trailDecaySpeed * deltaTime);
+    
     // Trail Map Render
     Result[id.xy] = trailMap[id.xy];
 }

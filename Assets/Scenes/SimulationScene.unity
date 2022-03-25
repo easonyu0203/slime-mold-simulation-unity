@@ -221,8 +221,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eed1ac384a5e4576b7621769b46904f7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _agentMoveSpeed: 100
-  _agentCnt: 20
+  _agentMoveSpeed: 50
+  _agentCnt: 50
+  _trailDecaySpeed: 0.1
+  _diffusionSpeed: 5
+  _agentTurnSpeed: 20
+  _sensorSize: 1
+  _sensorAngleOffset: 45
+  _sensorOffsetDst: 5
   _mainShader: {fileID: 7200000, guid: a0b9c2293d69c431a9eff47bb010d696, type: 3}
 --- !u!114 &1985681206
 MonoBehaviour:

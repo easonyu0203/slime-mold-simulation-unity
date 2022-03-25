@@ -18,6 +18,12 @@ namespace Simulation
         // setting
         [SerializeField] private float _agentMoveSpeed; // pixel/sec
         [SerializeField] private int _agentCnt;
+        [SerializeField] private float _trailDecaySpeed;
+        [SerializeField] private float _diffusionSpeed;
+        [SerializeField] private float _agentTurnSpeed;
+        [SerializeField] private int _sensorSize;
+        [SerializeField] private float _sensorAngleOffset;
+        [SerializeField] private float _sensorOffsetDst;
 
         // Agents
         private Agent[] _agents;
@@ -31,7 +37,7 @@ namespace Simulation
         
         // Singleton    
         public static AgentManger Singleton;
-        
+
         // Property
         public RenderTexture TrailMap => _trailMap;
 
@@ -75,7 +81,14 @@ namespace Simulation
             _mainShader.SetBuffer(_agentUpdateKernel, "agents", _agentsBuffer);
             // agentCnt
             _mainShader.SetInt("agentCnt",_agentCnt);
+            // setting
             _mainShader.SetFloat("moveSpeed", _agentMoveSpeed);
+            _mainShader.SetFloat("agentTurnSpeed", _agentTurnSpeed);
+            _mainShader.SetFloat("sensorOffsetDst", _sensorOffsetDst);
+            _mainShader.SetFloat("sensorAngleOffset", _sensorAngleOffset / 360f);
+            _mainShader.SetInt("sensorSize", _sensorSize);
+            _mainShader.SetFloat("trailDecaySpeed", _trailDecaySpeed);
+            _mainShader.SetFloat("diffusedSpeed", _diffusionSpeed);
             // screen width & height
             _mainShader.SetInt("width", Screen.width);
             _mainShader.SetInt("height", Screen.height);
