@@ -20,6 +20,8 @@ namespace Simulation
         {
             _targetTexUpdaters = GetComponents<IRenTexUpdater>();
         }
+        
+        
 
         private void OnRenderImage(RenderTexture src, RenderTexture dest)
         {

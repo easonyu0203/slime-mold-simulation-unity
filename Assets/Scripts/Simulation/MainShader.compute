@@ -1,18 +1,19 @@
 #pragma kernel AgentUpdate
 #pragma kernel SimRender
 
-/**
- * \brief 
- * \param uv 
- * \return random 0~1
- */
-float random (float2 uv)
+float random(uint x)
 {
-    uv /= 1000;
-    return frac(sin(dot(uv,float2(12.9898,78.233)))*43758.5453123);
+    x ^= 2747636419u;
+    x *= 2654435769u;
+    x ^= x >> 16;
+    x *= 2654435769u;
+    x ^= x >> 16;
+    x *= 2654435769u;
+    return x / 4294967295.0 ;
 }
+float PI = 3.1415926;
 
-// Agent Stuff
+// Agent structure
 struct Agent
 {
     float2 position;
@@ -20,119 +21,117 @@ struct Agent
     float dummy1;
 };
 
+// agent Update Variable
 RWStructuredBuffer<Agent> agents;
-RWTexture2D<float> trailMap;
 int agentCnt;
-// deltaTime
+float moveSpeed;
+
+// global
+RWTexture2D<float> trailMap;
+RWTexture2D<float4> Result;
 float deltaTime;
-// boundary
 int width;
 int height;
-// setting
-float moveSpeed;
-float trailDecaySpeed;
-float diffusedSpeed;
-float agentTurnSpeed;
-float sensorOffsetDst;
-float sensorAngleOffset;
-int sensorSize;
+bool isRunning;
 
-float sense(int x, float sensorAngleOffset)
+float sensorDst;
+
+float sense(Agent agent, float angleOffset)
 {
-    float senseAngle = agents[x].angle + sensorAngleOffset;
-    float2 senseDir = float2(cos(senseAngle), sin(senseAngle));
-    int2 senseCenter = agents[x].position + (senseDir * sensorOffsetDst);
-
-    float sum = 0;
-    for(int i = -sensorSize; i < sensorSize; i++)
+    float angle = angleOffset + agent.angle;
+    int2 senseCenter = agent.position + float2(cos(angle), sin(angle)) * sensorDst;
+    float sum = 0.0;
+    for(int i = -1; i <= 1; i++)
     {
-        for(int j = -sensorSize; j < sensorSize; j++)
+        for(int j = -1; j < 1; j++)
         {
-            int2 pos = senseCenter + int2(i,j);
-            if(pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height)
+            int x = senseCenter.x + i;
+            int y = senseCenter.y + j;
+            if(x >= 0 && x < width && y >= 0 && y < height)
             {
-                sum += trailMap[pos];
+                sum += trailMap[int2(x,y)];
             }
         }
     }
     return sum;
 }
 
+float agentTurnSpeed;
+
 [numthreads(64,1,1)]
 void AgentUpdate (uint3 id : SV_DispatchThreadID)
 {
-    float randomVal = random(agents[id.x].position + agents[id.x].angle);
+    if(!isRunning || int(id.x) >= agentCnt) return;
+    float randomValue = random(int(agents[id.x].position.x) + int(agents[id.x].position.y) * width + int(agents[id.x].angle * 10.0) );
+    
+    float2 newPos = agents[id.x].position + float2(cos(agents[id.x].angle), sin(agents[id.x].angle)) * moveSpeed * deltaTime;
 
-    // get new position
-    Agent agent = agents[id.x];
-    float2 dir = float2(cos(agent.angle), sin(agent.angle));
-    float2 newPos = agents[id.x].position + dir * moveSpeed * deltaTime;
-
-    // if out of bound, clamp in screen and give new random angle
+    // hit boundary
     if(newPos.x < 0 || newPos.x >= width || newPos.y < 0 || newPos.y >= height)
     {
+        // clamp position
         newPos.x = min(width - 1, max(0, newPos.x));
         newPos.y = min(height - 1, max(0, newPos.y));
-        agents[id.x].angle = randomVal * 2 * 3.141592;
+        // give random new angle
+        agents[id.x].angle = randomValue * 2.0 * 3.14;
+    }
+    else
+    {
+        float forwardW = sense(agents[id.x], 0.0);
+        float leftW = sense(agents[id.x],22.5 / 360.0 * 2.0 * 3.14);
+        float rightW = sense(agents[id.x], -22.5 / 360.0 * 2.0 * 3.14);
+
+        if(forwardW > leftW && forwardW > rightW)
+        {
+        }
+        else if(forwardW < leftW && forwardW < rightW)
+        {
+            agents[id.x].angle +=  (randomValue - 0.5) * 2.0 * agentTurnSpeed * deltaTime;
+        }
+        else if(leftW > rightW)
+        {
+            agents[id.x].angle += randomValue * agentTurnSpeed * deltaTime;
+        }
+        else if(rightW > leftW)
+        {
+            agents[id.x].angle -= randomValue * agentTurnSpeed * deltaTime;
+        }
     }
 
-    // Turn by trail
-    float forwardW = sense(id.x, 0);
-    float leftW = sense(id.x, sensorAngleOffset);
-    float rightW = sense(id.x, -sensorAngleOffset);
-    float steerStrength = randomVal;
-    
-    if(forwardW > leftW && forwardW > rightW)
-    {
-        agents[id.x].angle += 0;
-    }
-    else if(forwardW < leftW && forwardW < rightW)
-    {
-        agents[id.x].angle += (steerStrength - 0.5) * 2 * agentTurnSpeed * deltaTime;
-    }
-    else if(rightW > leftW)
-    {
-        agents[id.x].angle -= steerStrength * agentTurnSpeed * deltaTime;
-    }
-    else if(leftW > rightW)
-    {
-        agents[id.x].angle += steerStrength * agentTurnSpeed * deltaTime;
-    }
-
-    // update position and leave trail
-    trailMap[agents[id.x].position] = 1;
+    trailMap[agents[id.x].position.xy] = 1.0;
     agents[id.x].position = newPos;
 }
 
+float diffusionRate;
+float evaporate;
 
-
-// Display Stuff
-RWTexture2D<float4> Result;
+void DiffuseTrailMap(uint2 xy)
+{
+    float sum = 0;
+    for(int i = -1; i <= 1; i++)
+    {
+        for(int j = -1; j <= 1; j++)
+        {
+            int x = xy.x + i;
+            int y = xy.y + j;
+            if(x < 0 ||  x >= width || y < 0 || y >= height) continue;
+            sum += trailMap[int2(x,y)];
+        }
+    }
+    float diffusedVal = sum / 9.0;
+    // trailMap[xy] = diffusedVal;
+    trailMap[xy] = lerp(trailMap[xy], diffusedVal, diffusionRate * deltaTime);
+}
 
 [numthreads(8,8,1)]
 void SimRender (uint3 id : SV_DispatchThreadID)
 {
-    // Diffusion
-    // use blur and 
-    float sum = 0;
-    for (int i = -1; i < 2; ++i)
+    if(isRunning)
     {
-        for (int j = -1; j < 2; ++j)
-        {
-            int x = id.x + i;
-            int y = id.y + j;
-            if(x >= 0 && x < width && y >=0 && y < height)
-            {
-                sum += trailMap[int2(x,  y)];
-            }
-        }
+        DiffuseTrailMap(id.xy);
+        // evaporate
+        trailMap[id.xy] = max(0, trailMap[id.xy] - evaporate * deltaTime);
     }
-    float blurVal = sum / 9;
-    float diffusedVal = lerp(trailMap[id.xy], blurVal, diffusedSpeed * deltaTime);
     
-    // Decay Trail Map
-    trailMap[id.xy] = max(0, diffusedVal - trailDecaySpeed * deltaTime);
-    
-    // Trail Map Render
     Result[id.xy] = trailMap[id.xy];
 }
